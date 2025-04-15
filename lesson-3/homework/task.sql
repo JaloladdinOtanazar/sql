@@ -65,87 +65,71 @@ VALUES
 
 
 --Task 1: Employee Salary Report
---1ST
 
-SELECT TOP 10 * FROM Employees; 
-
---2ND
-SELECT  Department, AVG(Salary) AS mean
-FROM Employees
-GROUP BY Department
---SELECT * FROM Employees
-
---3RD
+WITH TopEmployees AS(
+SELECT TOP 10 PERCENT  * FROM Employees
+),
+Categorize AS (
 SELECT  *, 
 	CASE
  		WHEN Salary > 80000 THEN 'HIGH'
 		WHEN Salary BETWEEN 50000 AND 80000 THEN 'MEDIUM'
 		ELSE 'LOW'
-	END AS 'SalaryCategory'
-FROM Employees
+	END AS SalaryCategory
+FROM TopEmployees
+),
 
-
---4TH
-SELECT  Department, AVG(Salary) AS mean
-FROM Employees
-GROUP BY Department
-ORDER BY mean DESC;
-
--- 5th
-SELECT * FROM Employees
-ORDER BY EmployeeID
-OFFSET 2 ROWS FETCH NEXT 5 ROWS ONLY;
+DepartmentAvg AS (
+SELECT Department,
+SalaryCategory,
+AVG(Salary) AS AvgSalary
+FROM Categorize
+GROUP BY Department, SalaryCategory
+),
+Ordering AS (
+SELECT * 
+FROM DepartmentAvg
+ORDER BY AvgSalary DESC
+OFFSET 2 ROWS FETCH NEXT 5 ROWS ONLY
+)
+SELECT * FROM Ordering;
 
 --Task 2: Customer Order Insights
 
-
---1ST
 SELECT *  FROM Orders
 WHERE OrderDate BETWEEN '2023-01-01' and '2023-12-31';
+WITH OrderStatuses AS (
+SELECT *,
+	CASE 
+		WHEN Status IN ('Shipped','Delivered') THEN  'Completed'
+		WHEN Status = 'Pending' THEN 'Pending'
+		ELSE 'Cancelled'
+	END AS OrderStatus
+FROM Orders
+WHERE OrderDate BETWEEN '2023-01-01' and '2023-12-31'
+),
 
---2ND
-SELECT 
-	CASE 
-		WHEN Status IN ('Shipped','Delivered') THEN  'Completed'
-		WHEN Status = 'Pending' THEN 'Pending'
-		ELSE 'Cancelled'
-	END AS OrderStatus,
-	COUNT(*) AS TotalOrders,
-	SUM(TotalAmount) AS TotalRevenue
-FROM Orders
-GROUP BY 
-	CASE 
-		WHEN Status IN ('Shipped','Delivered') THEN  'Completed'
-		WHEN Status = 'Pending' THEN 'Pending'
-		ELSE 'Cancelled'
-	END 
---5TH
+Sums AS (
+SELECT OrderStatus, COUNT(*) AS TotalOrders, SUM(TotalAmount) AS TotalRevenue
+FROM OrderStatuses
+GROUP BY OrderStatus
+) 
+SELECT OrderStatus, TotalRevenue
+FROM Sums
+WHERE TotalRevenue > 5000
 ORDER BY TotalRevenue DESC;
---4TH
-SELECT Status
-FROM Orders
-WHERE TotalAmount > 5000
-GROUP BY Status;
 
 --Task 3: Product Inventory Check
-
---1ST
-SELECT DISTINCT Category FROM Products
-
---2ND
-
+SELECT DISTINCT Category FROM Products;
+WITH MaxPrice AS(
 SELECT Category, MAX(Price) AS max_price
 FROM Products
 GROUP BY Category
---3RD
-
+)
 SELECT *,
 IIF(Stock=0, 'Out Of Stock',
 	IIF(Stock BETWEEN 1 AND 10, 'Low Stock', 'In Stock')) AS Stat
 FROM Products
-
---4TH 
-SELECT * FROM Products
 ORDER BY Price
 OFFSET 5 ROWS;
-SELECT * FROM Products
+
